@@ -1,4 +1,4 @@
-name: Build AIZARO
+name: Build AIZARO Mod
 
 on:
   push:
@@ -18,39 +18,44 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK & Licenses
-        run: |
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
+      - name: Setup Android NDK (C++ ke liye)
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25c
 
-      - name: Extract Folders if zipped
+      - name: Setup Gradle (Naya version)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.5
+
+      - name: Unzip Source
         run: |
-          if [ -f "folders.zip" ]; then
-            unzip folders.zip
-          elif [ -f "src.zip" ]; then
+          if [ -f "src.zip" ]; then
             unzip src.zip
+          elif [ -f "folders.zip" ]; then
+            unzip folders.zip
           fi
 
-      - name: Fix local.properties
+      - name: Locate Project & Fix Files
         run: |
-          rm -f local.properties
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-
-      - name: Update Gradle Wrapper
-        run: |
-          if [ -f "gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew wrapper --gradle-version 8.5 || true
-          fi
-
-      - name: Build with Gradle
-        run: |
-          if [ -f "gradlew" ]; then
-            ./gradlew assembleDebug --stacktrace
-          else
-            echo "ERROR: gradlew file nahi mili. ZIP check karo."
+          # Find gradlew to know where project root is
+          GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
+          if [ -z "$GRADLEW_PATH" ]; then
+            echo "Error: gradlew nahi mila! ZIP check karo."
             exit 1
           fi
+          PROJECT_DIR=$(dirname "$GRADLEW_PATH")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          
+          # Remove local.properties (jo PC ke liye tha)
+          rm -f "$PROJECT_DIR/local.properties"
+          echo "sdk.dir=$ANDROID_HOME" > "$PROJECT_DIR/local.properties"
+
+      - name: Build with Global Gradle
+        run: |
+          cd $PROJECT_DIR
+          # Purane gradlew ko ignore karke seedha system gradle chalao
+          gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

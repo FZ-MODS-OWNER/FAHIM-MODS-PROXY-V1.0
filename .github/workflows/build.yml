@@ -18,15 +18,18 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Setup Android NDK (C++ ke liye)
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r25c
+          ndk-version: r26d
 
-      - name: Setup Gradle (Naya version)
+      - name: Setup Gradle (Sahi Version)
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: 8.5
+          gradle-version: 8.9
 
       - name: Unzip Source
         run: |
@@ -35,26 +38,25 @@ jobs:
           elif [ -f "folders.zip" ]; then
             unzip folders.zip
           fi
+          echo "--- FILES AFTER UNZIP ---"
+          ls -la
 
       - name: Locate Project & Fix Files
         run: |
-          # Find gradlew to know where project root is
           GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
           if [ -z "$GRADLEW_PATH" ]; then
-            echo "Error: gradlew nahi mila! ZIP check karo."
+            echo "ERROR: gradlew nahi mila!"
             exit 1
           fi
           PROJECT_DIR=$(dirname "$GRADLEW_PATH")
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
           
-          # Remove local.properties (jo PC ke liye tha)
           rm -f "$PROJECT_DIR/local.properties"
           echo "sdk.dir=$ANDROID_HOME" > "$PROJECT_DIR/local.properties"
 
       - name: Build with Global Gradle
         run: |
           cd $PROJECT_DIR
-          # Purane gradlew ko ignore karke seedha system gradle chalao
           gradle assembleDebug --stacktrace
 
       - name: Upload APK

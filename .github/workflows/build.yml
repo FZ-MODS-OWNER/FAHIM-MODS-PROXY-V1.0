@@ -1,0 +1,59 @@
+name: Build AIZARO
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK & Licenses
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
+
+      - name: Extract Folders if zipped
+        run: |
+          if [ -f "folders.zip" ]; then
+            unzip folders.zip
+          elif [ -f "src.zip" ]; then
+            unzip src.zip
+          fi
+
+      - name: Fix local.properties
+        run: |
+          rm -f local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Update Gradle Wrapper
+        run: |
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew wrapper --gradle-version 8.5 || true
+          fi
+
+      - name: Build with Gradle
+        run: |
+          if [ -f "gradlew" ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            echo "ERROR: gradlew file nahi mili. ZIP check karo."
+            exit 1
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIZARO-APK
+          path: "**/app/build/outputs/apk/debug/app-debug.apk"

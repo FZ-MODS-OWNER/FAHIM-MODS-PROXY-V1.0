@@ -17,8 +17,22 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.5
+
       - name: Unzip Folders
-        run: unzip folders.zip
+        run: |
+          if [ -f "folders.zip" ]; then
+            unzip folders.zip
+          else
+            echo "ERROR: folders.zip nahi mili GitHub par!"
+            exit 1
+          fi
+
+      - name: Update Gradle Wrapper
+        run: gradle wrapper --gradle-version 8.5
 
       - name: Grant execute permission
         run: chmod +x gradlew

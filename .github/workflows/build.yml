@@ -62,32 +62,19 @@ jobs:
           echo "android.useAndroidX=true" >> gradle.properties
           echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: Build and Extract Real Error
+      - name: Build with Gradle
         run: |
           GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
           PROJECT_DIR=$(dirname "$GRADLEW_PATH")
           cd "$PROJECT_DIR"
           chmod +x gradlew
           
-          # Build run karo aur poora log ek file me save karo
-          ./gradlew assembleDebug --stacktrace > build_log.txt 2>&1 || gradle assembleDebug --stacktrace > build_log.txt 2>&1 || true
-          
-          # Sirf asli error nikaal kar dikhao
-          echo "======================================================="
-          echo "================= ASLI ERROR YAHAN HAI ================="
-          echo "======================================================="
-          
-          if grep -q "FAILURE:" build_log.txt; then
-            grep -A 15 "FAILURE:" build_log.txt
-          elif grep -q "error:" build_log.txt; then
-            grep -A 15 "error:" build_log.txt
-          else
-            echo "Koi specific error nahi mila. Yeh last 50 lines hain:"
-            tail -n 50 build_log.txt
-          fi
+          # Ab yahan koi || true nahi hai. Agar error aayega, yahin ruk jayega.
+          ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Find and Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: AIZARO-APK
-          path: "**/app/build/outputs/apk/debug/app-debug.apk"
+          path: "**/*.apk"

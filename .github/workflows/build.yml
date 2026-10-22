@@ -17,6 +17,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android Licenses
+        run: yes | sdkmanager --licenses || true
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
@@ -24,12 +30,16 @@ jobs:
 
       - name: Unzip Folders
         run: |
-          if [ -f "folders.zip" ]; then
-            unzip folders.zip
-          else
-            echo "ERROR: folders.zip nahi mili GitHub par!"
-            exit 1
-          fi
+          unzip folders.zip
+          # Agar folders ek dusre folder ke andar hain toh bahar nikalna
+          if [ -d "Aizaro" ]; then mv Aizaro/* .; fi
+
+      - name: Fix local.properties
+        run: |
+          # Agar local.properties galti se upload ho gayi hai toh use delete karo
+          rm -f local.properties
+          # Naya sahi local.properties banao
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
       - name: Build APK
         run: gradle assembleDebug --stacktrace

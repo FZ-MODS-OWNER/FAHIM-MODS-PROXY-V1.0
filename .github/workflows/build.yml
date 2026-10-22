@@ -18,15 +18,18 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses
+        run: |
+          # Yeh line har license ko khud 'yes' bolegi
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
 
       - name: Setup Android NDK (C++ ke liye)
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r26d
+          ndk-version: r25c
 
-      - name: Setup Gradle (Sahi Version)
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.9
@@ -38,14 +41,12 @@ jobs:
           elif [ -f "folders.zip" ]; then
             unzip folders.zip
           fi
-          echo "--- FILES AFTER UNZIP ---"
-          ls -la
 
       - name: Locate Project & Fix Files
         run: |
           GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
           if [ -z "$GRADLEW_PATH" ]; then
-            echo "ERROR: gradlew nahi mila!"
+            echo "ERROR: gradlew nahi mila! ZIP check karo."
             exit 1
           fi
           PROJECT_DIR=$(dirname "$GRADLEW_PATH")

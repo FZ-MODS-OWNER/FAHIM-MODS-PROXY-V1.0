@@ -18,10 +18,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Install CMake and Ninja (C++ ke liye)
+        run: sudo apt-get install -y cmake ninja-build
+
       - name: Accept Android SDK Licenses
         run: |
           yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "cmake;3.22.1" || true
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
@@ -37,13 +40,12 @@ jobs:
         run: |
           if [ -f "src.zip" ]; then unzip src.zip; elif [ -f "folders.zip" ]; then unzip folders.zip; fi
 
-      - name: Fix Gradle Settings & Properties
+      - name: Fix Settings and Properties
         run: |
           GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
           PROJECT_DIR=$(dirname "$GRADLEW_PATH")
           cd "$PROJECT_DIR"
           
-          # settings.gradle fix (Strict rule hataya)
           cat > settings.gradle << 'EOF'
           pluginManagement {
               repositories {
@@ -56,21 +58,17 @@ jobs:
           include ':app'
           EOF
 
-          # gradle.properties fix
           echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" > gradle.properties
           echo "android.useAndroidX=true" >> gradle.properties
-          echo "android.nonTransitiveRClass=true" >> gradle.properties
-
-          # local.properties fix
-          rm -f local.properties
           echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: Locate Project & Build
+      - name: Build with Gradle
         run: |
           GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
           PROJECT_DIR=$(dirname "$GRADLEW_PATH")
           cd "$PROJECT_DIR"
-          gradle assembleDebug --stacktrace
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace || gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

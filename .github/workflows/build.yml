@@ -20,11 +20,10 @@ jobs:
 
       - name: Accept Android SDK Licenses
         run: |
-          # Yeh line har license ko khud 'yes' bolegi
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
 
-      - name: Setup Android NDK (C++ ke liye)
+      - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r25c
@@ -36,28 +35,43 @@ jobs:
 
       - name: Unzip Source
         run: |
-          if [ -f "src.zip" ]; then
-            unzip src.zip
-          elif [ -f "folders.zip" ]; then
-            unzip folders.zip
-          fi
+          if [ -f "src.zip" ]; then unzip src.zip; elif [ -f "folders.zip" ]; then unzip folders.zip; fi
 
-      - name: Locate Project & Fix Files
+      - name: Fix Missing Google Repo in Settings.gradle
         run: |
           GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
-          if [ -z "$GRADLEW_PATH" ]; then
-            echo "ERROR: gradlew nahi mila! ZIP check karo."
-            exit 1
-          fi
           PROJECT_DIR=$(dirname "$GRADLEW_PATH")
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
           
-          rm -f "$PROJECT_DIR/local.properties"
-          echo "sdk.dir=$ANDROID_HOME" > "$PROJECT_DIR/local.properties"
+          # Settings.gradle ko overwrite karo taaki google() add ho jaye
+          cat > "$PROJECT_DIR/settings.gradle" << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "AIZARO"
+          include ':app'
+          EOF
 
-      - name: Build with Global Gradle
+      - name: Locate Project & Build
         run: |
-          cd $PROJECT_DIR
+          GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
+          PROJECT_DIR=$(dirname "$GRADLEW_PATH")
+          cd "$PROJECT_DIR"
+          
+          rm -f local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          
+          # System gradle use karo
           gradle assembleDebug --stacktrace
 
       - name: Upload APK

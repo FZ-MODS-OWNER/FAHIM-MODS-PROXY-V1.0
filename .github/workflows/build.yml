@@ -18,7 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install CMake and Ninja (C++ ke liye)
+      - name: Install CMake and Ninja
         run: sudo apt-get install -y cmake ninja-build
 
       - name: Accept Android SDK Licenses
@@ -62,13 +62,29 @@ jobs:
           echo "android.useAndroidX=true" >> gradle.properties
           echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: Build with Gradle
+      - name: Build and Extract Real Error
         run: |
           GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
           PROJECT_DIR=$(dirname "$GRADLEW_PATH")
           cd "$PROJECT_DIR"
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace || gradle assembleDebug --stacktrace
+          
+          # Build run karo aur poora log ek file me save karo
+          ./gradlew assembleDebug --stacktrace > build_log.txt 2>&1 || gradle assembleDebug --stacktrace > build_log.txt 2>&1 || true
+          
+          # Sirf asli error nikaal kar dikhao
+          echo "======================================================="
+          echo "================= ASLI ERROR YAHAN HAI ================="
+          echo "======================================================="
+          
+          if grep -q "FAILURE:" build_log.txt; then
+            grep -A 15 "FAILURE:" build_log.txt
+          elif grep -q "error:" build_log.txt; then
+            grep -A 15 "error:" build_log.txt
+          else
+            echo "Koi specific error nahi mila. Yeh last 50 lines hain:"
+            tail -n 50 build_log.txt
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
